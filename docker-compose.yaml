@@ -7,6 +7,10 @@ services:
       - '3000:3000'
     volumes:
       - data:/home/vane/data
+    environment:
+      # Generate a random SearXNG secret if not already set in your shell environment.
+      # To pin a value: set SEARXNG_SECRET=<your-hex-secret> in a .env file or shell before running compose.
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-}
     restart: unless-stopped
 
 volumes:

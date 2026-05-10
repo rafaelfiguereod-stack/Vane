@@ -9,6 +9,9 @@ import officeParser from 'officeparser'
 
 const supportedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'] as const
 
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.docx', '.txt', '.md', '.csv']);
+const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
 type SupportedMimeType = typeof supportedMimeTypes[number];
 
 type UploadManagerParams = {
@@ -178,14 +181,24 @@ class UploadManager {
         const processedFiles: FileRes[] = [];
 
         await Promise.all(files.map(async (file) => {
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                throw Object.assign(new Error(`File "${file.name}" exceeds the 25 MB size limit`), { status: 400 });
+            }
+
             if (!(supportedMimeTypes as unknown as string[]).includes(file.type)) {
                 throw new Error(`File type ${file.type} not supported`);
             }
 
+            const fileExtension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`;
+
+            if (!ALLOWED_EXTENSIONS.has(fileExtension)) {
+                throw Object.assign(new Error(`File extension "${fileExtension}" is not allowed. Allowed extensions: ${[...ALLOWED_EXTENSIONS].join(', ')}`), { status: 400 });
+            }
+
             const fileId = crypto.randomBytes(16).toString('hex');
 
-            const fileExtension = file.name.split('.').pop();
-            const fileName = `${crypto.randomBytes(16).toString('hex')}.${fileExtension}`;
+            const safeExtension = fileExtension.slice(1); // strip leading dot
+            const fileName = `${crypto.randomBytes(16).toString('hex')}.${safeExtension}`;
             const filePath = path.join(UploadManager.uploadsDir, fileName);
 
             const buffer = Buffer.from(await file.arrayBuffer())
@@ -205,7 +218,7 @@ class UploadManager {
             UploadManager.addNewRecordedFile(fileRecord);
 
             processedFiles.push({
-                fileExtension: fileExtension || '',
+                fileExtension: safeExtension,
                 fileId,
                 fileName: file.name
             });

@@ -1,9 +1,23 @@
 #!/bin/sh
 set -e
 
+# Generate or use provided SEARXNG_SECRET, then substitute into settings.yml
+SETTINGS_PATH='/etc/searxng/settings.yml'
+if [ -z "${SEARXNG_SECRET}" ]; then
+  SEARXNG_SECRET="$(openssl rand -hex 32)"
+  echo "Generated SEARXNG_SECRET (none provided via env)"
+fi
+
+# Write settings.yml with the real secret (copy from template if needed)
+if [ ! -f "${SETTINGS_PATH}" ]; then
+  cp /usr/local/searxng/searxng-src/searxng/settings.yml "${SETTINGS_PATH}" 2>/dev/null || true
+fi
+
+sed -i "s/REPLACE_WITH_SEARXNG_SECRET_AT_STARTUP/${SEARXNG_SECRET}/" "${SETTINGS_PATH}"
+
 echo "Starting SearXNG..."
 
-sudo -H -u searxng bash -c "cd /usr/local/searxng/searxng-src && export SEARXNG_SETTINGS_PATH='/etc/searxng/settings.yml' && export FLASK_APP=searx/webapp.py && /usr/local/searxng/searx-pyenv/bin/python -m flask run --host=0.0.0.0 --port=8080" &
+sudo -H -u searxng bash -c "cd /usr/local/searxng/searxng-src && export SEARXNG_SETTINGS_PATH='${SETTINGS_PATH}' && export FLASK_APP=searx/webapp.py && /usr/local/searxng/searx-pyenv/bin/python -m flask run --host=0.0.0.0 --port=8080" &
 SEARXNG_PID=$!
 
 echo "Waiting for SearXNG to be ready..."

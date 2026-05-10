@@ -8,6 +8,20 @@ type SaveConfigBody = {
   value: string;
 };
 
+const SECRET_FIELD_PATTERN = /key|token|secret|password|apikey/i;
+
+function redactSecrets(obj: Record<string, any>): Record<string, any> {
+  const redacted: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === 'string' && SECRET_FIELD_PATTERN.test(k)) {
+      redacted[k] = v.length > 0 ? '****' : '';
+    } else {
+      redacted[k] = v;
+    }
+  }
+  return redacted;
+}
+
 export const GET = async (req: NextRequest) => {
   try {
     const values = configManager.getCurrentConfig();
@@ -22,6 +36,7 @@ export const GET = async (req: NextRequest) => {
 
         return {
           ...mp,
+          config: redactSecrets(mp.config),
           chatModels: activeProvider?.chatModels ?? mp.chatModels,
           embeddingModels:
             activeProvider?.embeddingModels ?? mp.embeddingModels,

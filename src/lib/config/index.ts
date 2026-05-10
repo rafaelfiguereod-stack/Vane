@@ -130,6 +130,11 @@ class ConfigManager {
       this.configPath,
       JSON.stringify(this.currentConfig, null, 2),
     );
+    try {
+      fs.chmodSync(this.configPath, 0o600);
+    } catch {
+      // chmod may not be supported on all platforms (e.g. Windows); non-fatal
+    }
   }
 
   private initializeConfig() {

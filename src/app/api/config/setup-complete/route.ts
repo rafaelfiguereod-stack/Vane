@@ -3,6 +3,14 @@ import { NextRequest } from 'next/server';
 
 export const POST = async (req: NextRequest) => {
   try {
+    if (configManager.isSetupComplete()) {
+      // One-way flag: once setup is complete it cannot be reset via this endpoint
+      return Response.json(
+        { message: 'Setup is already complete.' },
+        { status: 409 },
+      );
+    }
+
     configManager.markSetupComplete();
 
     return Response.json(

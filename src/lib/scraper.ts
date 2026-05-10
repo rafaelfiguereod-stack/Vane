@@ -46,9 +46,50 @@ class Scraper {
     }, this.IDLE_KILL_TIMEOUT);
   }
 
+  private static validateUrl(url: string): void {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error(`Invalid URL: ${url}`);
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`URL scheme "${parsed.protocol}" is not allowed. Only http and https are permitted.`);
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block loopback
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      throw new Error(`Requests to loopback addresses are not allowed.`);
+    }
+
+    // Block link-local (169.254.x.x) and cloud metadata endpoints
+    if (/^169\.254\./.test(hostname)) {
+      throw new Error(`Requests to link-local addresses are not allowed.`);
+    }
+
+    // Block RFC1918 private ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+    if (
+      /^10\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      /^192\.168\./.test(hostname)
+    ) {
+      throw new Error(`Requests to private/internal IP ranges are not allowed.`);
+    }
+
+    // Block IPv6 private ranges (basic check)
+    if (hostname.startsWith('[fc') || hostname.startsWith('[fd') || hostname === '[::1]') {
+      throw new Error(`Requests to private/internal IPv6 addresses are not allowed.`);
+    }
+  }
+
   static async scrape(
     url: string,
   ): Promise<{ content: string; title: string }> {
+    this.validateUrl(url);
+
     await this.initBrowser();
 
     if (!this.browser) throw new Error('Browser not initialized');
